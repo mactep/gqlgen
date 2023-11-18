@@ -9,8 +9,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"regexp"
 
+	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -149,6 +151,9 @@ func unpack(data interface{}, into interface{}, customDc *mapstructure.DecoderCo
 		TagName:     "json",
 		ErrorUnused: true,
 		ZeroFields:  true,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			stringToUUIDHookFunc(),
+		),
 	}
 	if customDc != nil {
 		dc = customDc
@@ -161,4 +166,17 @@ func unpack(data interface{}, into interface{}, customDc *mapstructure.DecoderCo
 	}
 
 	return d.Decode(data)
+}
+
+func stringToUUIDHookFunc() mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+		if f.Kind() != reflect.String {
+			return data, nil
+		}
+		if t != reflect.TypeOf(uuid.UUID{}) {
+			return data, nil
+		}
+
+		return uuid.Parse(data.(string))
+	}
 }
